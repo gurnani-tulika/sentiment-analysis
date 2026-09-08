@@ -2,6 +2,8 @@ import streamlit as st
 import pandas as pd
 
 from services.preprocessing import analyze_text
+from services.sentiment import analyze_sentiment
+from services.emoji_analysis import analyze_emojis
 
 
 st.set_page_config(page_title="Social Media Comment Intelligence", layout="wide")
@@ -85,10 +87,15 @@ if st.button("Analyze Comments"):
     progress_bar = st.progress(0, text="Processing comments...")
 
     for index, comment in enumerate(comments):
-        results.append(analyze_text(comment))
+        preprocessing_result = analyze_text(comment)
+        sentiment_result = analyze_sentiment(comment)
+        emoji_result = analyze_emojis(preprocessing_result["emojis"])
+
+        results.append({**preprocessing_result, **sentiment_result, **emoji_result})
+
         progress_bar.progress(
             (index + 1) / total_to_process,
-            text=f"Processing comment {index + 1} of {total_to_process}...",
+            text=f"Processing comments... ({index + 1}/{total_to_process})",
         )
 
     progress_bar.empty()
@@ -102,12 +109,20 @@ if st.button("Analyze Comments"):
         "cleaned_text",
         "emojis",
         "emoji_count",
+        "emoji_sentiment",
+        "emoji_categories",
+        "sarcasm_emoji_detected",
         "hashtags",
         "hashtag_count",
         "has_url",
         "excessive_repetition",
         "exclamation_count",
         "question_count",
+        "sentiment_label",
+        "compound_score",
+        "positive_score",
+        "neutral_score",
+        "negative_score",
     ]
     analysis_df = analysis_df[display_columns]
 
@@ -122,5 +137,34 @@ if st.button("Analyze Comments"):
         "Comments with excessive repetition",
         int(analysis_df["excessive_repetition"].sum()),
     )
+
+    st.subheader("Sentiment Summary")
+
+    positive_count = int((analysis_df["sentiment_label"] == "POSITIVE").sum())
+    neutral_count = int((analysis_df["sentiment_label"] == "NEUTRAL").sum())
+    negative_count = int((analysis_df["sentiment_label"] == "NEGATIVE").sum())
+
+    col1, col2, col3, col4 = st.columns(4)
+    col1.metric("Total comments", total_to_process)
+    col2.metric("Positive comments", positive_count)
+    col3.metric("Neutral comments", neutral_count)
+    col4.metric("Negative comments", negative_count)
+
+    st.subheader("Emoji Analysis Summary")
+
+    emoji_positive = int((analysis_df["emoji_sentiment"] == "POSITIVE").sum())
+    emoji_negative = int((analysis_df["emoji_sentiment"] == "NEGATIVE").sum())
+    emoji_mixed = int((analysis_df["emoji_sentiment"] == "MIXED").sum())
+    emoji_laughter = int((analysis_df["emoji_sentiment"] == "LAUGHTER").sum())
+    emoji_neutral = int((analysis_df["emoji_sentiment"] == "NEUTRAL").sum())
+    sarcasm_emoji_count = int(analysis_df["sarcasm_emoji_detected"].sum())
+
+    col1, col2, col3, col4, col5, col6 = st.columns(6)
+    col1.metric("Emoji-positive", emoji_positive)
+    col2.metric("Emoji-negative", emoji_negative)
+    col3.metric("Emoji-mixed", emoji_mixed)
+    col4.metric("Emoji-laughter", emoji_laughter)
+    col5.metric("Emoji-neutral", emoji_neutral)
+    col6.metric("Sarcasm emoji signal", sarcasm_emoji_count)
 
     st.dataframe(analysis_df, use_container_width=True)
