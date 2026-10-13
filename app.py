@@ -4,6 +4,8 @@ import pandas as pd
 from services.preprocessing import analyze_text
 from services.sentiment import analyze_sentiment
 from services.emoji_analysis import analyze_emojis
+from services.spam_analysis import analyze_spam
+from services.sarcasm import analyze_sarcasm
 
 
 st.set_page_config(page_title="Social Media Comment Intelligence", layout="wide")
@@ -90,8 +92,23 @@ if st.button("Analyze Comments"):
         preprocessing_result = analyze_text(comment)
         sentiment_result = analyze_sentiment(comment)
         emoji_result = analyze_emojis(preprocessing_result["emojis"])
+        spam_result = analyze_spam( 
+            comment,
+            preprocessing_result["hashtags"],
+            preprocessing_result["has_url"],
+            preprocessing_result["excessive_repetition"],
+        )
+        sarcasm_result = analyze_sarcasm(
+         comment,
+         sentiment_result["sentiment_label"],
+         sentiment_result["compound_score"],
+         emoji_result["emoji_sentiment"],
+         emoji_result["sarcasm_emoji_detected"],
+         preprocessing_result["exclamation_count"],
+         preprocessing_result["question_count"],
+        )
 
-        results.append({**preprocessing_result, **sentiment_result, **emoji_result})
+        results.append({**preprocessing_result, **sentiment_result, **emoji_result,**spam_result,**sarcasm_result})
 
         progress_bar.progress(
             (index + 1) / total_to_process,
@@ -123,6 +140,15 @@ if st.button("Analyze Comments"):
         "positive_score",
         "neutral_score",
         "negative_score",
+        "spam_score",
+        "spam_reasons",
+        "hashtag_hijacking_signal",
+        "hashtag_hijacking_reasons",
+        "sarcasm_detected",
+        "sarcasm_score",
+        "sarcasm_reasons",
+        "mocking_detected",
+        "mocking_reasons",
     ]
     analysis_df = analysis_df[display_columns]
 
